@@ -3,7 +3,7 @@ import Navbar from "../components/Navbar";
 import axios from "axios";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, LineChart, Line
+  ResponsiveContainer, LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from "recharts";
 
 export default function Dashboard() {
@@ -15,8 +15,89 @@ export default function Dashboard() {
     leastCollisions: null,
     topResponsable: null,
     totalVentes: 0,
-    incendiesCount: 0
+    incendiesCount: 0,
+    // Add these new fields for the Group 8 API
+    totalSalesAmount: 0,
+    totalSalesCurrency: 'EUR',
+    salesCount: 0,
+    operationsAnalyzed: 0,
+    salesDescription: '',
+    salesIndicator: '',
+    // New fields for cybersecurity training API
+    cybersecTraining: null,
+    totalCybersecTrainings: 0,
+    totalTrainingsAnalyzed: 0,
+    cybersecDescription: '',
+    cybersecIndicator: ''
   });
+
+  const fetchMontantTotalVentes = async () => {
+    try {
+      const response = await fetch("http://10.206.29.157:5003/api/total_sales");
+
+      if (!response.ok) {
+        throw new Error("Erreur API");
+      }
+
+      const data = await response.json();
+      console.log("Résultat API Groupe 8 (Ventes) :", data);
+
+      // Return the data in a consistent format
+      return {
+        totalSalesAmount: data.total_sales_amount || 0,
+        totalSalesCurrency: data.currency || 'EUR',
+        salesCount: data.sales_count || 0,
+        operationsAnalyzed: data.total_operations_analyzed || 0,
+        salesDescription: data.description || '',
+        salesIndicator: data.indicator || ''
+      };
+
+    } catch (error) {
+      console.error("Erreur fetch Montant Total Ventes :", error);
+      // Return default values in case of error
+      return {
+        totalSalesAmount: 0,
+        totalSalesCurrency: 'EUR',
+        salesCount: 0,
+        operationsAnalyzed: 0,
+        salesDescription: '',
+        salesIndicator: ''
+      };
+    }
+  };
+
+  const fetchBestCybersecTraining = async () => {
+    try {
+      const response = await fetch("http://10.206.29.157:5004/api/best_cybersec_training");
+
+      if (!response.ok) {
+        throw new Error("Erreur API Cybersécurité");
+      }
+
+      const data = await response.json();
+      console.log("Résultat API Groupe 8 (Cybersécurité) :", data);
+
+      // Return the data in a consistent format
+      return {
+        cybersecTraining: data.training || null,
+        totalCybersecTrainings: data.total_cybersec_trainings || 0,
+        totalTrainingsAnalyzed: data.total_trainings_analyzed || 0,
+        cybersecDescription: data.description || '',
+        cybersecIndicator: data.indicator || ''
+      };
+
+    } catch (error) {
+      console.error("Erreur fetch Formation Cybersécurité :", error);
+      // Return default values in case of error
+      return {
+        cybersecTraining: null,
+        totalCybersecTrainings: 0,
+        totalTrainingsAnalyzed: 0,
+        cybersecDescription: '',
+        cybersecIndicator: ''
+      };
+    }
+  };
 
   // Fonctions pour récupérer chaque endpoint
   const fetchArticles = async () => {
@@ -100,7 +181,9 @@ export default function Dashboard() {
           leastCollisions,
           topResponsable,
           totalVentes,
-          incendiesCount
+          incendiesCount,
+          group8SalesData,
+          group8CybersecData  // Add this
         ] = await Promise.all([
           fetchArticles(),
           fetchCorrectCount(),
@@ -108,7 +191,9 @@ export default function Dashboard() {
           fetchLeastCollisions(),
           fetchTopResponsable(),
           fetchTotalVentes(),
-          fetchIncendiesCount()
+          fetchIncendiesCount(),
+          fetchMontantTotalVentes(),
+          fetchBestCybersecTraining()  // Add this
         ]);
 
         setEndpointsData({
@@ -118,7 +203,20 @@ export default function Dashboard() {
           leastCollisions,
           topResponsable,
           totalVentes,
-          incendiesCount
+          incendiesCount,
+          // Add the Group 8 data
+          totalSalesAmount: group8SalesData.totalSalesAmount,
+          totalSalesCurrency: group8SalesData.totalSalesCurrency,
+          salesCount: group8SalesData.salesCount,
+          operationsAnalyzed: group8SalesData.operationsAnalyzed,
+          salesDescription: group8SalesData.salesDescription,
+          salesIndicator: group8SalesData.salesIndicator,
+          // Add the Group 8 cybersecurity data
+          cybersecTraining: group8CybersecData.cybersecTraining,
+          totalCybersecTrainings: group8CybersecData.totalCybersecTrainings,
+          totalTrainingsAnalyzed: group8CybersecData.totalTrainingsAnalyzed,
+          cybersecDescription: group8CybersecData.cybersecDescription,
+          cybersecIndicator: group8CybersecData.cybersecIndicator
         });
       } catch (error) {
         console.error("Erreur générale:", error);
@@ -152,6 +250,12 @@ export default function Dashboard() {
     { type: 'Collisions', count: endpointsData.leastCollisions?.collisions || 0, color: '#FFC107' },
   ];
 
+  // Données pour le radar chart de formation cybersécurité
+  const cybersecTrainingData = endpointsData.cybersecTraining ? [
+    { subject: 'Satisfaction', A: endpointsData.cybersecTraining.pct_satisfaction || 0, fullMark: 100 },
+    { subject: 'Engagement', A: endpointsData.cybersecTraining.pct_engagement || 0, fullMark: 100 },
+  ] : [];
+
   return (
     <>
       <Navbar />
@@ -170,6 +274,45 @@ export default function Dashboard() {
           <>
             {/* KPI Cards */}
             <div className="kpi-grid">
+              {/* Ventes Groupe 8 */}
+              <div className="kpi-card">
+                <div className="kpi-icon">🏪</div>
+                <div className="kpi-content">
+                  <h3>Ventes Groupe 8</h3>
+                  <p className="kpi-value">
+                    {endpointsData.totalSalesAmount.toLocaleString()} {endpointsData.totalSalesCurrency}
+                  </p>
+                  <p className="kpi-label">
+                    {endpointsData.salesCount} ventes / {endpointsData.operationsAnalyzed} opérations
+                  </p>
+                  {endpointsData.salesIndicator && (
+                    <small style={{ color: endpointsData.salesIndicator === 'A' ? '#4CAF50' : '#FF9800' }}>
+                      Indicateur: {endpointsData.salesIndicator}
+                    </small>
+                  )}
+                </div>
+              </div>
+
+              {/* Formation Cybersécurité */}
+              <div className="kpi-card">
+                <div className="kpi-icon">🔒</div>
+                <div className="kpi-content">
+                  <h3>Meilleure Formation Cyber</h3>
+                  <p className="kpi-value">
+                    {endpointsData.cybersecTraining?.pct_satisfaction || 0}%
+                  </p>
+                  <p className="kpi-label">
+                    {endpointsData.totalCybersecTrainings} formations / {endpointsData.totalTrainingsAnalyzed} analysées
+                  </p>
+                  {endpointsData.cybersecIndicator && (
+                    <small style={{ color: endpointsData.cybersecIndicator === 'A' ? '#4CAF50' : '#FF9800' }}>
+                      Indicateur: {endpointsData.cybersecIndicator}
+                    </small>
+                  )}
+                </div>
+              </div>
+
+              {/* Total Articles */}
               <div className="kpi-card">
                 <div className="kpi-icon">📦</div>
                 <div className="kpi-content">
@@ -179,15 +322,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="kpi-card">
-                <div className="kpi-icon">💰</div>
-                <div className="kpi-content">
-                  <h3>Total Ventes</h3>
-                  <p className="kpi-value">{endpointsData.totalVentes.toLocaleString()} €</p>
-                  <p className="kpi-label">Montant total</p>
-                </div>
-              </div>
-
+              {/* Incendies */}
               <div className="kpi-card">
                 <div className="kpi-icon">🚨</div>
                 <div className="kpi-content">
@@ -197,21 +332,32 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* Top Responsable */}
               <div className="kpi-card">
                 <div className="kpi-icon">👑</div>
                 <div className="kpi-content">
                   <h3>Top Responsable</h3>
                   <p className="kpi-value">{endpointsData.topResponsable?.totalKilometres || 0} km</p>
                   <p className="kpi-label">
-                    {endpointsData.topResponsable ? 
-                      `${endpointsData.topResponsable.prenom} ${endpointsData.topResponsable.nom}` : 
+                    {endpointsData.topResponsable ?
+                      `${endpointsData.topResponsable.prenom} ${endpointsData.topResponsable.nom}` :
                       'Non disponible'}
                   </p>
                 </div>
               </div>
+
+              {/* Total Ventes Locales */}
+              <div className="kpi-card">
+                <div className="kpi-icon">💰</div>
+                <div className="kpi-content">
+                  <h3>Total Ventes Locales</h3>
+                  <p className="kpi-value">{endpointsData.totalVentes.toLocaleString()} €</p>
+                  <p className="kpi-label">Montant total des ventes</p>
+                </div>
+              </div>
             </div>
 
-            {/* Graphiques */}
+            {/* Graphiques - Première ligne */}
             <div className="charts-grid">
               {/* Graphique d'emballage */}
               <div className="chart-card">
@@ -261,10 +407,10 @@ export default function Dashboard() {
                       <YAxis />
                       <Tooltip formatter={(value) => [`${value.toFixed(0)} €`, 'Ventes']} />
                       <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="ventes" 
-                        stroke="#2196F3" 
+                      <Line
+                        type="monotone"
+                        dataKey="ventes"
+                        stroke="#2196F3"
                         strokeWidth={2}
                         dot={{ r: 4 }}
                         activeDot={{ r: 6 }}
@@ -280,7 +426,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Deuxième ligne de graphiques */}
+            {/* Graphiques - Deuxième ligne */}
             <div className="charts-grid">
               {/* Graphique des incidents */}
               <div className="chart-card">
@@ -312,6 +458,54 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* Graphique Radar Cybersécurité */}
+              <div className="chart-card">
+                <h3>🔒 Formation Cybersécurité</h3>
+                <div className="chart-container">
+                  <ResponsiveContainer width="100%" height={250}>
+                    {endpointsData.cybersecTraining ? (
+                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={cybersecTrainingData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="subject" />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                        <Radar
+                          name="Pourcentage"
+                          dataKey="A"
+                          stroke="#8884d8"
+                          fill="#8884d8"
+                          fillOpacity={0.6}
+                        />
+                        <Tooltip formatter={(value) => [`${value}%`, 'Score']} />
+                        <Legend />
+                      </RadarChart>
+                    ) : (
+                      <div className="no-chart-data">
+                        <p>Aucune donnée de formation disponible</p>
+                      </div>
+                    )}
+                  </ResponsiveContainer>
+                </div>
+                <div className="chart-stats">
+                  {endpointsData.cybersecTraining ? (
+                    <>
+                      <div className="stat-item">
+                        <span>Satisfaction: {endpointsData.cybersecTraining.pct_satisfaction}%</span>
+                      </div>
+                      <div className="stat-item">
+                        <span>Engagement: {endpointsData.cybersecTraining.pct_engagement}%</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="stat-item">
+                      <span>Aucune donnée disponible</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Graphiques - Troisième ligne */}
+            <div className="charts-grid">
               {/* Tableau de bord des responsabilités */}
               <div className="chart-card">
                 <h3>👥 Top Responsable</h3>
@@ -338,10 +532,10 @@ export default function Dashboard() {
                 <div className="performance-indicator">
                   <h4>Performance</h4>
                   <div className="progress-bar">
-                    <div 
-                      className="progress-fill" 
-                      style={{ 
-                        width: `${Math.min((endpointsData.topResponsable?.totalKilometres || 0) / 1000 * 100, 100)}%` 
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width: `${Math.min((endpointsData.topResponsable?.totalKilometres || 0) / 1000 * 100, 100)}%`
                       }}
                     ></div>
                   </div>
@@ -350,6 +544,58 @@ export default function Dashboard() {
                     <span>1000 km</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Détails Formation Cybersécurité */}
+              <div className="chart-card">
+                <h3>📚 Détails Formation</h3>
+                {endpointsData.cybersecTraining ? (
+                  <div className="training-details">
+                    <div className="training-header">
+                      <h4>{endpointsData.cybersecTraining.nom_formation}</h4>
+                      <span className="training-badge" style={{ 
+                        backgroundColor: endpointsData.cybersecTraining.pct_satisfaction > 90 ? '#4CAF50' : 
+                                       endpointsData.cybersecTraining.pct_satisfaction > 70 ? '#FF9800' : '#F44336' 
+                      }}>
+                        {endpointsData.cybersecTraining.pct_satisfaction}%
+                      </span>
+                    </div>
+                    <div className="training-info">
+                      <div className="info-row">
+                        <span className="info-label">Date:</span>
+                        <span className="info-value">
+                          {new Date(endpointsData.cybersecTraining.date_formation).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Sujet:</span>
+                        <span className="info-value">{endpointsData.cybersecTraining.sujet}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Mot clé Formateur:</span>
+                        <span className="info-value">{endpointsData.cybersecTraining.mot_formateur}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">Mot clé Personnel:</span>
+                        <span className="info-value">{endpointsData.cybersecTraining.mot_personnel}</span>
+                      </div>
+                    </div>
+                    <div className="training-stats">
+                      <div className="stat-circle">
+                        <div className="circle-value">{endpointsData.cybersecTraining.pct_satisfaction}%</div>
+                        <div className="circle-label">Satisfaction</div>
+                      </div>
+                      <div className="stat-circle">
+                        <div className="circle-value">{endpointsData.cybersecTraining.pct_engagement}%</div>
+                        <div className="circle-label">Engagement</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="no-training-data">
+                    <p>Aucune information de formation disponible</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -365,6 +611,23 @@ export default function Dashboard() {
                   { url: "http://localhost:3001/api/operations/top-responsable-km-with-name", method: "GET", available: !!endpointsData.topResponsable },
                   { url: "http://localhost:3001/api/operations/total-ventes", method: "GET", count: endpointsData.totalVentes, label: "€" },
                   { url: "http://localhost:3001/api/surveillances/incendies-count", method: "GET", count: endpointsData.incendiesCount, label: "incendies" },
+                  // API Groupe 8 - Ventes
+                  {
+                    url: "http://10.206.29.157:5003/api/total_sales",
+                    method: "GET",
+                    count: endpointsData.totalSalesAmount,
+                    label: endpointsData.totalSalesCurrency,
+                    description: "API Groupe 8 (Ventes)"
+                  },
+                  // API Groupe 8 - Cybersécurité
+                  {
+                    url: "http://10.206.29.157:5004/api/best_cybersec_training",
+                    method: "GET",
+                    count: endpointsData.totalCybersecTrainings,
+                    label: "formations",
+                    description: "API Groupe 8 (Cybersécurité)",
+                    available: !!endpointsData.cybersecTraining
+                  },
                 ].map((endpoint, index) => (
                   <div key={index} className="endpoint-card">
                     <div className="endpoint-header">
@@ -375,6 +638,11 @@ export default function Dashboard() {
                         {endpoint.available !== undefined ? (endpoint.available ? '✓' : '✗') : '✓'}
                       </span>
                     </div>
+                    {endpoint.description && (
+                      <div className="endpoint-description">
+                        {endpoint.description}
+                      </div>
+                    )}
                     <code className="endpoint-url">{endpoint.url}</code>
                     {endpoint.count !== undefined && (
                       <div className="endpoint-metric">
@@ -532,6 +800,14 @@ export default function Dashboard() {
           margin-bottom: 20px;
         }
 
+        .no-chart-data {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          color: #999;
+        }
+
         .chart-stats {
           display: flex;
           gap: 20px;
@@ -633,10 +909,81 @@ export default function Dashboard() {
           color: #777;
         }
 
-        .no-data {
+        .no-data, .no-training-data {
           text-align: center;
           color: #999;
           padding: 40px 0;
+        }
+
+        .training-details {
+          margin-top: 10px;
+        }
+
+        .training-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+
+        .training-header h4 {
+          margin: 0;
+          color: #333;
+          font-size: 16px;
+          flex: 1;
+        }
+
+        .training-badge {
+          padding: 4px 12px;
+          border-radius: 20px;
+          color: white;
+          font-weight: bold;
+          font-size: 14px;
+        }
+
+        .training-info {
+          margin-bottom: 20px;
+        }
+
+        .info-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 8px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid #eee;
+        }
+
+        .info-label {
+          font-weight: 600;
+          color: #666;
+        }
+
+        .info-value {
+          color: #333;
+        }
+
+        .training-stats {
+          display: flex;
+          justify-content: space-around;
+          margin-top: 20px;
+        }
+
+        .stat-circle {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .circle-value {
+          font-size: 24px;
+          font-weight: bold;
+          color: #1a237e;
+          margin-bottom: 5px;
+        }
+
+        .circle-label {
+          font-size: 12px;
+          color: #666;
         }
 
         .section {
@@ -707,6 +1054,13 @@ export default function Dashboard() {
         .status-badge.error {
           background: #F44336;
           color: white;
+        }
+
+        .endpoint-description {
+          font-size: 12px;
+          color: #666;
+          margin-bottom: 5px;
+          font-weight: 500;
         }
 
         .endpoint-url {
